@@ -60,7 +60,7 @@ The Wrapper circuit is necessary because we cannot recursively verify the same c
 
 ## Verification Logic
 In order to be able to generate the first valid proof using our circuit, one has to obtain a valid Helios proof for our trusted checkpoint.
-The trusted checkpoint is a pair of Root, Slot that we know is valid and this is the only trust assumption in the protocol.
+The trusted checkpoint is a pair of Beacon Header Root, Slot that we know is valid and this is the only trust assumption in the protocol.
 
 Moving forward every new proof will be verified against a valid previous proof, e.g. we always have to make a transition from one of the previous
 valid Helios checkpoints to a new checkpoint.

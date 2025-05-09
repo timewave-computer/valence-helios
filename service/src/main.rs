@@ -8,8 +8,8 @@ use std::{fmt::Debug, time::Instant};
 use alloy_sol_types::SolType;
 use anyhow::{Context, Result};
 use beacon_electra::{
-    extract_electra_block_body, get_beacon_block_header, get_electra_block,
-    types::electra::ElectraBlockHeader,
+    extract_electra_block_body, generate_execution_payload_proofs, get_electra_block,
+    merkleize_header, types::electra::ElectraBlockHeader,
 };
 use preprocessor::Preprocessor;
 use recursion_types::{RecursionCircuitInputs, RecursionCircuitOutputs, WrapperCircuitInputs};
@@ -163,18 +163,31 @@ async fn main() -> Result<()> {
             get_electra_block(helios_outputs.newHead.try_into()?, &consensus_url).await;
 
         // Extract and process block data
-        let electra_body_roots = extract_electra_block_body(electra_block);
-        let beacon_header =
-            get_beacon_block_header(helios_outputs.newHead.try_into()?, &consensus_url).await;
+        let electra_body_roots = extract_electra_block_body(electra_block.clone());
 
         // Construct the Electra block header
         let electra_header = ElectraBlockHeader {
-            slot: beacon_header.slot.as_u64(),
-            proposer_index: beacon_header.proposer_index,
-            parent_root: beacon_header.parent_root.to_vec().try_into().unwrap(),
-            state_root: beacon_header.state_root.to_vec().try_into().unwrap(),
-            body_root: beacon_header.body_root.to_vec().try_into().unwrap(),
+            slot: electra_block.message.slot.as_u64(),
+            proposer_index: electra_block.message.proposer_index,
+            parent_root: electra_block
+                .message
+                .parent_root
+                .to_vec()
+                .try_into()
+                .unwrap(),
+            state_root: electra_block
+                .message
+                .state_root
+                .to_vec()
+                .try_into()
+                .unwrap(),
+            body_root: electra_body_roots.merkelize(),
         };
+
+        let electra_header_root = merkleize_header(electra_header.clone());
+        // this could replace the electra_body input, but header is still needed for now
+        let payload_merkle_proofs = generate_execution_payload_proofs(electra_block.clone());
+        assert_eq!(payload_merkle_proofs.0, electra_header_root);
 
         // Get the previous proof if this isn't the first update
         let previous_proof = if service_state.update_counter == 0 {

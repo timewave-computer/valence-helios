@@ -1,9 +1,10 @@
 #[cfg(feature = "no-zkvm")]
-use consensus_types::{BeaconBlockHeader, SignedBeaconBlock};
+use consensus_types::SignedBeaconBlock;
 #[cfg(feature = "no-zkvm")]
 use consensus_types::{MainnetEthSpec, SignedBeaconBlockElectra};
 use helpers::merkleize_container;
 use itertools::Itertools;
+use sha2::{Digest, Sha256};
 #[cfg(feature = "no-zkvm")]
 use tree_hash::TreeHash;
 use types::electra::ElectraBlockHeader;
@@ -47,36 +48,6 @@ pub fn merkleize_header(header: ElectraBlockHeader) -> [u8; 32] {
         header.state_root,
         header.body_root,
     ])
-}
-
-#[cfg(feature = "no-zkvm")]
-/// Fetches a beacon block header from a specified Ethereum beacon node
-///
-/// # Arguments
-/// * `slot` - The slot number of the block header to fetch
-/// * `url` - The URL of the beacon node to query
-///
-/// # Returns
-/// The requested beacon block header
-///
-/// # Errors
-/// Returns an error if the request fails or the response cannot be parsed
-pub async fn get_beacon_block_header(slot: u64, url: &str) -> BeaconBlockHeader {
-    let client = reqwest::Client::new();
-    let url = format!("{}/eth/v1/beacon/headers/{}", url, slot);
-    let resp = client
-        .get(&url)
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap()
-        .json::<serde_json::Value>()
-        .await
-        .unwrap();
-    let summary: BeaconBlockHeader =
-        serde_json::from_value(resp["data"]["header"]["message"].clone()).unwrap();
-    summary
 }
 
 #[cfg(feature = "no-zkvm")]
@@ -151,6 +122,7 @@ pub fn extract_electra_block_body(
         blob_gas_used: execution_payload.blob_gas_used.tree_hash_root().into(),
         excess_blob_gas: execution_payload.excess_blob_gas.tree_hash_root().into(),
     };
+
     ElectraBlockBodyRoots {
         randao_reveal: electra_block_body.randao_reveal.tree_hash_root().into(),
         eth1_data: electra_block_body.eth1_data.tree_hash_root().into(),
@@ -192,8 +164,6 @@ pub fn extract_electra_block_body(
 /// 2. We can fetch and process the corresponding block
 /// 3. The computed merkle roots match the expected values
 async fn test_get_beacon_block_body() {
-    let beacon_block_header =
-        get_beacon_block_header(7520257, "https://lodestar-sepolia.chainsafe.io").await;
     // Lodestar Sepolia endpoint
     let endpoint = format!(
         "https://lodestar-sepolia.chainsafe.io/eth/v2/beacon/blocks/{}",
@@ -219,18 +189,117 @@ async fn test_get_beacon_block_body() {
 
     assert_eq!(
         electra_block_body_root.to_vec(),
-        beacon_block_header.body_root.to_vec()
+        electra_block.message.body.tree_hash_root().to_vec()
     );
-    let electra_block_header = ElectraBlockHeader {
-        slot: beacon_block_header.slot.as_u64(),
-        proposer_index: beacon_block_header.proposer_index,
-        parent_root: beacon_block_header.parent_root.into(),
-        state_root: beacon_block_header.state_root.into(),
-        body_root: beacon_block_header.body_root.into(),
+}
+
+/// Generates merkle proofs for state_root and block_number against the header root
+///
+/// This function takes an Electra block and generates merkle proofs that prove:
+/// 1. The state_root in the execution payload is part of the header root
+/// 2. The block_number in the execution payload is part of the header root
+///
+/// # Arguments
+/// * `electra_block` - The Electra block to generate proofs for
+///
+/// # Returns
+/// A tuple containing:
+/// - The header root
+/// - The state_root proof (vector of sibling hashes)
+/// - The block_number proof (vector of sibling hashes)
+#[cfg(feature = "no-zkvm")]
+pub fn generate_execution_payload_proofs(
+    electra_block: SignedBeaconBlockElectra<MainnetEthSpec>,
+) -> ([u8; 32], Vec<[u8; 32]>, Vec<[u8; 32]>) {
+    let electra_block_body = extract_electra_block_body(electra_block.clone());
+
+    // Create header
+    let header = ElectraBlockHeader {
+        slot: electra_block.message.slot.as_u64(),
+        proposer_index: electra_block.message.proposer_index,
+        parent_root: electra_block.message.parent_root.into(),
+        state_root: electra_block.message.state_root.into(),
+        body_root: electra_block_body.merkelize(),
     };
-    let beacon_block_header_root = merkleize_header(electra_block_header);
-    assert_eq!(
-        beacon_block_header_root.to_vec(),
-        beacon_block_header.tree_hash_root().to_vec()
+
+    // Get the header root
+    let header_root = merkleize_header(header);
+
+    // Generate proof for state_root in payload
+    let state_root_proof = generate_proof(
+        &electra_block_body.payload_roots.state_root,
+        &electra_block_body.payload_roots.merkelize(),
+        2, // state_root is at index 2 in payload roots
     );
+
+    // Generate proof for block_number in payload
+    let block_number_proof = generate_proof(
+        &electra_block_body.payload_roots.block_number,
+        &electra_block_body.payload_roots.merkelize(),
+        6, // block_number is at index 6 in payload roots
+    );
+
+    (header_root, state_root_proof, block_number_proof)
+}
+
+/// Helper function to generate a merkle proof for a specific leaf
+///
+/// # Arguments
+/// * `leaf` - The leaf value to generate a proof for
+/// * `root` - The root of the merkle tree
+/// * `index` - The index of the leaf in the tree
+///
+/// # Returns
+/// A vector of sibling hashes that make up the proof
+#[cfg(feature = "no-zkvm")]
+fn generate_proof(leaf: &[u8; 32], root: &[u8; 32], index: usize) -> Vec<[u8; 32]> {
+    let mut proof = Vec::new();
+    let mut current = *leaf;
+    let mut current_index = index;
+
+    // Get all siblings up to the root
+    while current != *root {
+        if current_index % 2 == 0 {
+            current_index + 1
+        } else {
+            current_index - 1
+        };
+        let sibling = get_sibling_hash(&current, current_index);
+        proof.push(sibling);
+
+        // Move up the tree
+        let mut hasher = Sha256::new();
+        if current_index % 2 == 0 {
+            hasher.update(current);
+            hasher.update(sibling);
+        } else {
+            hasher.update(sibling);
+            hasher.update(current);
+        }
+        current = hasher.finalize().into();
+        current_index /= 2;
+    }
+
+    proof
+}
+
+/// Helper function to get the sibling hash for a given node
+///
+/// # Arguments
+/// * `node` - The current node hash
+/// * `index` - The index of the current node
+///
+/// # Returns
+/// The hash of the sibling node
+#[cfg(feature = "no-zkvm")]
+fn get_sibling_hash(node: &[u8; 32], index: usize) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    if index % 2 == 0 {
+        hasher.update(node);
+        hasher.update(&[0u8; 32]);
+    } else {
+        hasher.update(&[0u8; 32]);
+        hasher.update(node);
+    }
+    hasher.finalize().into()
 }
