@@ -32,7 +32,7 @@ serde_json = "1.0.105"
 itertools = "0.14"
 sha2 = "0.10.8"
 
-sp1-zkvm = "4.1.7"
+sp1-zkvm = { git = "https://github.com/timewave-computer/sp1", branch = "jonas/fix-4.1.7-syscall" }
 sp1-sdk = { git = "https://github.com/timewave-computer/sp1", branch = "jonas/fix-4.1.7-syscall", features = [
     "native-gnark",
 ] }

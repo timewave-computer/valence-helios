@@ -1553,7 +1553,7 @@ dependencies = [
  "hex",
  "pairing 0.23.0",
  "rand_core 0.6.4",
- "sp1-lib",
+ "sp1-lib 4.2.0",
  "subtle",
 ]
 
@@ -6808,6 +6808,16 @@ dependencies = [
 
 [[package]]
 name = "sp1-lib"
+version = "4.1.7"
+source = "git+https://github.com/timewave-computer/sp1?branch=jonas%2Ffix-4.1.7-syscall#2ce184336547c2be344969200b718547d8c5686e"
+dependencies = [
+ "bincode",
+ "serde",
+ "sp1-primitives 4.1.7",
+]
+
+[[package]]
+name = "sp1-lib"
 version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3ef88f90458b6116da164e9c4c4596c49c8cca1944bfe02850b48b232a06b90"
@@ -7124,9 +7134,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-zkvm"
-version = "4.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d56dda97ba9915e7484a607e7517783d7422591c815e8dbfdbb716d77198760"
+version = "4.1.7"
+source = "git+https://github.com/timewave-computer/sp1?branch=jonas%2Ffix-4.1.7-syscall#2ce184336547c2be344969200b718547d8c5686e"
 dependencies = [
  "cfg-if",
  "getrandom 0.2.16",
@@ -7134,8 +7143,8 @@ dependencies = [
  "libm",
  "rand 0.8.5",
  "sha2 0.10.8",
- "sp1-lib",
- "sp1-primitives 4.2.0",
+ "sp1-lib 4.1.7",
+ "sp1-primitives 4.1.7",
 ]
 
 [[package]]
@@ -7295,7 +7304,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "rustc-hex",
- "sp1-lib",
+ "sp1-lib 4.2.0",
 ]
 
 [[package]]

@@ -101,6 +101,9 @@ pub fn main() {
             previous_helios_output.prevSyncCommitteeHash
         );
 
+        // assert that the previous header is the same as the new header of the previous proof
+        assert_eq!(previous_helios_output.prevHeader, helios_output.newHeader);
+
         // Output the state root and block height
         let outputs = RecursionCircuitOutputs {
             root: state_root.to_vec(),
