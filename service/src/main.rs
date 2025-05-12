@@ -242,6 +242,26 @@ async fn main() -> Result<()> {
         let recursive_outputs: RecursionCircuitOutputs =
             borsh::from_slice(&recursive_proof.public_values.to_vec()).unwrap();
 
+        let wrapper_inputs = WrapperCircuitInputs {
+            recursive_proof: recursive_proof.bytes(),
+            recursive_public_values: recursive_proof.public_values.to_vec(),
+            recursive_vk: wrapper_vk.bytes32(),
+        };
+
+        let wrapper_proof = client
+            .prove(&wrapper_pk, &stdin)
+            .groth16()
+            .run()
+            .context("Failed to prove")?;
+
+        // now send the proof to the co-processor
+
+        /*let wrapper_proof_outputs: RecursionCircuitOutputs =
+        borsh::from_slice(&wrapper_proof.public_values.to_vec()).unwrap();*/
+
+        let mut stdin = SP1Stdin::new();
+        stdin.write_slice(&borsh::to_vec(&wrapper_inputs).unwrap());
+
         // Update the service state with new trusted information
         service_state.most_recent_proof = Some(proof.clone());
         service_state.trusted_slot = helios_outputs.newHead.try_into().unwrap();

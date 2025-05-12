@@ -23,7 +23,7 @@ fn main() {
         &inputs.recursive_proof,
         &public_outputs,
         // todo: hardcode this verifying key (must be the Recursive circuit VK)
-        "0x0050e73ef1b082a4cae687b2671ea25b3d22402e400aebc9bb8937b957fc05a3",
+        "0x0074324ea86faa36f57578747b0fd218de911c6dcc71c6171ed6472c14895c5f",
         groth16_vk,
     )
     .expect("Failed to verify previous proof");
