@@ -122,6 +122,7 @@ async fn main() -> Result<()> {
     // Generate the Wrapper Circuit
     if args.generate_wrapper_circuit {
         let (_, vk) = client.setup(RECURSIVE_ELF_RUNTIME);
+        println!("Recursive VK: {:?}", vk.bytes32());
         let vk_bytes = vk.bytes32();
         let template = include_str!("../../recursion/wrapper-circuit/src/blueprint.rs");
         let generated_code = template.replace("{ recursive_vk }", &format!("\"{}\"", vk_bytes));
