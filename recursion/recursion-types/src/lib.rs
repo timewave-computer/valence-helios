@@ -7,10 +7,8 @@ pub struct RecursionCircuitInputs {
     pub electra_header: ElectraBlockHeader,
     pub helios_proof: Vec<u8>,
     pub helios_public_values: Vec<u8>,
-    pub helios_vk: String,
     pub previous_proof: Option<Vec<u8>>,
     pub previous_public_values: Option<Vec<u8>>,
-    pub previous_vk: Option<String>,
     pub previous_head: u64,
 }
 
@@ -18,7 +16,6 @@ pub struct RecursionCircuitInputs {
 pub struct WrapperCircuitInputs {
     pub recursive_proof: Vec<u8>,
     pub recursive_public_values: Vec<u8>,
-    pub recursive_vk: String,
 }
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]

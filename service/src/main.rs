@@ -124,9 +124,11 @@ async fn main() -> Result<()> {
     // Main service loop
     loop {
         // Set up the proving keys and verification keys for all circuits
-        let (helios_pk, helios_vk) = client.setup(HELIOS_ELF);
+        let (helios_pk, _) = client.setup(HELIOS_ELF);
         let (recursive_pk, recursive_vk) = client.setup(&recursive_elf);
-        let (wrapper_pk, wrapper_vk) = client.setup(&wrapper_elf);
+        let (wrapper_pk, _) = client.setup(&wrapper_elf);
+
+        println!("Recursive VK: {:?}", recursive_vk.bytes32());
 
         // Initialize the preprocessor with the current trusted slot
         let preprocessor = Preprocessor::new(service_state.trusted_slot);
@@ -209,10 +211,8 @@ async fn main() -> Result<()> {
             electra_header: electra_header,
             helios_proof: proof.bytes(),
             helios_public_values: proof.public_values.to_vec(),
-            helios_vk: helios_vk.bytes32(),
             previous_proof: previous_proof.as_ref().map(|p| p.bytes()),
             previous_public_values: previous_proof.as_ref().map(|p| p.public_values.to_vec()),
-            previous_vk: previous_proof.as_ref().map(|_| wrapper_vk.bytes32()),
             previous_head: service_state.trusted_slot,
         };
 
@@ -245,10 +245,10 @@ async fn main() -> Result<()> {
         let wrapper_inputs = WrapperCircuitInputs {
             recursive_proof: recursive_proof.bytes(),
             recursive_public_values: recursive_proof.public_values.to_vec(),
-            recursive_vk: wrapper_vk.bytes32(),
         };
 
-        let wrapper_proof = client
+        // final coprocessor wrapper proof
+        let _wrapper_proof = client
             .prove(&wrapper_pk, &stdin)
             .groth16()
             .run()
