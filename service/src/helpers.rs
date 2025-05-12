@@ -19,7 +19,7 @@ pub async fn get_execution_block_height_from_slot(
 async fn test_get_execution_block_height_from_slot() {
     dotenvy::dotenv().ok();
     let consensus_url = std::env::var("SOURCE_CONSENSUS_RPC_URL").unwrap_or_default();
-    let height = get_execution_block_height_from_slot(&consensus_url, 7578079 - (32 * 10))
+    let height = get_execution_block_height_from_slot(&consensus_url, 7606080)
         .await
         .unwrap();
     println!("Height: {:?}", height);
